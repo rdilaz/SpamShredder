@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Spam Shredder</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fjalla+One&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="main.css">
+</head>
+<body>
+  <div class="app-wrapper">
+    
+    <header class="glass-header">
+      <div class="header-container">
+        <img src="icon.png" alt="Spam Shredder Logo" class="app-logo">
+        <h2>Spam Shredder</h2>
+      </div>
+      <div class="user-meta">
+        <div class="quota-badge">
+          <span class="quota-label">Q/Min:</span> <span id="quotaMinUi" class="quota-val">0</span>
+          <span class="quota-divider">|</span>
+          <span class="quota-label">Q/Sec:</span> <span id="quotaSecUi" class="quota-val">0</span>
+        </div>
+        <div class="user-auth">
+          <span id="userEmailDisplay" class="user-email">Loading...</span>
+          <a href="#" id="signOutBtn" class="sign-out-link">Sign out</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="content-container">
+      <div class="controls-card">
+        <p class="subtitle">Sign In and click fetch to get a sorted list of your most annoying promotional emails!</p>
+        <select id="scanLimitSelect" class="scan-dropdown">
+          <option value="500">Scan 500 emails (~15 seconds)</option>
+          <option value="1000">Scan 1,000 emails (~25 seconds)</option>
+          <option value="1500">Scan 1,500 emails (~45 seconds)</option>
+        </select> 
+        <button id="fetchEmailsBtn" class="primary-btn">Fetch Recent Emails</button>
+        <button id="clearStateBtn" class="secondary-btn" style="display: none;">Start Over</button>
+      </div>
+      
+      <div id="progressContainer" class="progress-card" style="display: none;">
+        <div id="statusLog" class="status-text">Starting up...</div>
+        <progress id="progressBar" value="0" max="100"></progress>
+      </div>
+      
+      <div id="resultsContainer"></div>
+    </main>
+
+  </div>
+  
+  <script src="main.js"></script>
+</body>
+</html>

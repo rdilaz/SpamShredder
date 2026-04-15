@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Spam Shredder",
+  "version": "1.01",
+  "description": "Easily Find and bulk-delete your most recent promotional spam emails for a cleaner Gmail Inbox.",
+  "action": {
+    "default_popup": "main.html",
+    "default_title": "Open Spam Shredder",
+    "default_icon": "icon.png"
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "permissions": [
+    "identity",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "oauth2": {
+    "client_id": "600947832475-27h77c849lc0vesurmlvc9e2qlm85lis.apps.googleusercontent.com",
+    "scopes": [
+      "https://mail.google.com/"
+    ]
+  }
+}
