@@ -1,17 +1,21 @@
 // --- HELPER FUNCTIONS ---
-
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-const chunkArray = (array, size) => {
-  const result = [];
-  for (let i = 0; i < array.length; i += size) {
-    result.push(array.slice(i, i + size));
-  }
-  return result;
+ 
+// Run 1st on startup
+// Called by getAuthToken on startup to display the user's email in the UI
+const displayUserEmail = (token) => {
+  const emailDisplay = document.getElementById('userEmailDisplay');
+  fetch('https://www.googleapis.com/gmail/v1/users/me/profile', {
+    headers: { 'Authorization': 'Bearer ' + token }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.emailAddress) emailDisplay.innerText = data.emailAddress;
+  })
+  .catch(() => { emailDisplay.innerText = "Signed in"; });
 };
 
-// --- QUOTA TRACKING LOGIC ---
 
+// --- QUOTA TRACKING LOGIC ---
 const logQuota = async (cost) => {
   const now = Date.now();
   return new Promise((resolve) => {
@@ -23,7 +27,9 @@ const logQuota = async (cost) => {
     });
   });
 };
-
+ 
+// Runs 2nd on startup
+// Reads array of timestamps from storage, filters to last minute, and sums costs for minute and second
 const getQuotaStats = async () => {
   const now = Date.now();
   return new Promise((resolve) => {
@@ -36,6 +42,16 @@ const getQuotaStats = async () => {
       resolve({ usedThisMinute, usedThisSecond });
     });
   });
+};
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const chunkArray = (array, size) => {
+  const result = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
+  }
+  return result;
 };
 
 // DRY Helper for Gmail API
@@ -71,18 +87,50 @@ const extractEmailAddress = (rawSender) => {
 
 const getManualUnsubLabel = (unsubData) => {
   if (unsubData?.https) return 'Open Unsub Page';
-  if (unsubData?.mailto) return 'Open Mail App';
+  if (unsubData?.mailto) return 'Open Gmail Draft';
   return 'No Link';
+};
+
+const buildGmailComposeUrl = (mailtoUrl) => {
+  if (!mailtoUrl || !mailtoUrl.toLowerCase().startsWith('mailto:')) return null;
+
+  try {
+    const parsed = new URL(mailtoUrl);
+    const composeParams = new URLSearchParams({ view: 'cm', fs: '1', tf: '1' });
+    const to = parsed.pathname ? decodeURIComponent(parsed.pathname) : '';
+
+    if (to) composeParams.set('to', to);
+
+    const paramMap = {
+      cc: 'cc',
+      bcc: 'bcc',
+      subject: 'su',
+      body: 'body'
+    };
+
+    Object.entries(paramMap).forEach(([mailtoParam, gmailParam]) => {
+      const value = parsed.searchParams.get(mailtoParam);
+      if (value) composeParams.set(gmailParam, value);
+    });
+
+    return `https://mail.google.com/mail/?${composeParams.toString()}`;
+  } catch (error) {
+    console.error('Failed to parse mailto unsubscribe link:', error);
+    return null;
+  }
 };
 
 const openManualUnsub = (unsubData) => {
   if (unsubData?.https) {
-    window.open(unsubData.https, '_blank');
+    chrome.tabs.create({ url: unsubData.https, active: true });
     return true;
   }
 
   if (unsubData?.mailto) {
-    window.location.href = unsubData.mailto;
+    const gmailComposeUrl = buildGmailComposeUrl(unsubData.mailto);
+    if (!gmailComposeUrl) return false;
+
+    chrome.tabs.create({ url: gmailComposeUrl, active: true });
     return true;
   }
 
@@ -93,6 +141,7 @@ const extractUnsubLink = (rawHeader) => {
   if (!rawHeader) return null;
   const httpsMatch = rawHeader.match(/<(https:\/\/[^>]+)>/);
   const mailtoMatch = rawHeader.match(/<(mailto:[^>]+)>/);
+
   return {
     https: httpsMatch ? httpsMatch[1] : null,
     mailto: mailtoMatch ? mailtoMatch[1] : null
@@ -104,19 +153,6 @@ const getUnsubScore = (unsubData, requiresPost) => {
   if (unsubData?.mailto) return 1;
   return 0;
 };
-
-const displayUserEmail = (token) => {
-  const emailDisplay = document.getElementById('userEmailDisplay');
-  fetch('https://www.googleapis.com/gmail/v1/users/me/profile', {
-    headers: { 'Authorization': 'Bearer ' + token }
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.emailAddress) emailDisplay.innerText = data.emailAddress;
-  })
-  .catch(() => { emailDisplay.innerText = "Signed in"; });
-};
-
 
 // --- MAIN EXTENSION LOGIC ---
 
@@ -132,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const quotaSecUi = document.getElementById('quotaSecUi');
   const signOutBtn = document.getElementById('signOutBtn');
 
-  let currentLimit = 30; 
+  let currentLimit = 40; 
 
   // 1. STARTUP IDENTITY CHECK
   chrome.identity.getAuthToken({ interactive: false }, function(token) {
@@ -187,10 +223,20 @@ document.addEventListener('DOMContentLoaded', function() {
       const row = document.createElement('div');
       row.className = 'culprit-row';
 
+      // // --- NEW LOGIC HERE ---
+      // // Calculate the score using the saved data for this specific sender
+      // const score = getUnsubScore(culprit[1].unsubData, culprit[1].requiresPost);
+      
       const info = document.createElement('div');
       info.className = 'culprit-info';
-      info.innerHTML = `<strong>${count}</strong> emails from <br><span class="email-text">${email}</span><br>`;
-
+      
+      // Add the score into the innerHTML so it displays beneath the email address
+      info.innerHTML = `
+        <strong>${count}</strong> emails from <br>
+        <span class="email-text">${email}</span><br>
+      `;
+      // ----------------------
+      
       const exampleLink = document.createElement('a');
       exampleLink.className = 'example-link';
       exampleLink.href = `https://mail.google.com/mail/u/0/#all/${exampleId}`;
@@ -286,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
         unsubBtn.disabled = true;
         unsubBtn.innerText = 'No Link';
       } else if (!culprit[1].unsubData.https && culprit[1].unsubData.mailto) {
-        unsubBtn.innerText = 'Open Mail App';
+        unsubBtn.innerText = getManualUnsubLabel(culprit[1].unsubData);
         unsubBtn.onclick = () => {
           openManualUnsub(culprit[1].unsubData);
         };
@@ -452,7 +498,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let allMessages = [];
         let pageToken = '';
         let keepFetching = true;
-        const query = encodeURIComponent("category:promotions -from:me -from:*@akamai.com -from:*@boston.umb.edu");
+        const query = encodeURIComponent("category:promotions -from:me");
         let baseUrl = `https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=500&q=${query}`;
         
         while (keepFetching && allMessages.length < scanLimit) {
