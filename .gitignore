@@ -205,3 +205,38 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# 1. Dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# 2. Production Builds & Artifacts
+dist/
+build/
+.next/
+out/
+
+# 3. Environment Variables & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+
+# 4. OS-Generated Files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+
+# 5. IDE and Editor Directories
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

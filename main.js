@@ -69,45 +69,24 @@ const extractEmailAddress = (rawSender) => {
   return (emailMatch && emailMatch[1] ? emailMatch[1] : rawSender).toLowerCase().trim();
 };
 
-// Humanized Silent Email Sender
-const sendSilentUnsubEmail = async (mailtoUrl, token) => {
-  const [addressPart, paramPart] = mailtoUrl.replace('mailto:', '').split('?');
-  const recipient = addressPart;
-  const params = new URLSearchParams(paramPart || '');
-  
-  const subject = params.get('subject') || "Unsubscribe";
-  const body = params.get('body') || "Please unsubscribe me from this mailing list.";
+const getManualUnsubLabel = (unsubData) => {
+  if (unsubData?.https) return 'Open Unsub Page';
+  if (unsubData?.mailto) return 'Open Mail App';
+  return 'No Link';
+};
 
-  const profileResponse = await fetch('https://www.googleapis.com/gmail/v1/users/me/profile', {
-    headers: { 'Authorization': 'Bearer ' + token }
-  });
-  const profile = await profileResponse.json();
-  const userEmail = profile.emailAddress;
+const openManualUnsub = (unsubData) => {
+  if (unsubData?.https) {
+    window.open(unsubData.https, '_blank');
+    return true;
+  }
 
-  const date = new Date().toUTCString();
-  const str = [
-    `Date: ${date}`,
-    `From: ${userEmail}`,
-    `To: ${recipient}`,
-    `Subject: ${subject}`,
-    "Content-Type: text/plain; charset=UTF-8",
-    "MIME-Version: 1.0",
-    "",
-    body
-  ].join("\r\n");
+  if (unsubData?.mailto) {
+    window.location.href = unsubData.mailto;
+    return true;
+  }
 
-  const encodedMail = btoa(unescape(encodeURIComponent(str)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-
-  const response = await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ raw: encodedMail })
-  });
-
-  if (!response.ok) throw new Error(`Email API failed: ${response.status}`);
-  await logQuota(50); 
-  return response.json();
+  return false;
 };
 
 const extractUnsubLink = (rawHeader) => {
@@ -118,6 +97,12 @@ const extractUnsubLink = (rawHeader) => {
     https: httpsMatch ? httpsMatch[1] : null,
     mailto: mailtoMatch ? mailtoMatch[1] : null
   };
+};
+
+const getUnsubScore = (unsubData, requiresPost) => {
+  if (unsubData?.https) return requiresPost ? 3 : 2;
+  if (unsubData?.mailto) return 1;
+  return 0;
 };
 
 const displayUserEmail = (token) => {
@@ -187,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
       emptyMsg.style.padding = '20px';
       emptyMsg.style.color = 'var(--text-muted)';
       emptyMsg.style.fontSize = '14px';
-      emptyMsg.innerText = "No promotional senders found with 10+ emails. Your inbox is squeaky clean!";
+      emptyMsg.innerText = "No promotional senders found with 4+ emails. Your inbox is squeaky clean!";
       resultsContainer.appendChild(emptyMsg);
       return;
     }
@@ -297,67 +282,61 @@ document.addEventListener('DOMContentLoaded', function() {
         unsubBtn.style.backgroundColor = '#0f9d58'; 
         unsubBtn.style.color = 'white';
         unsubBtn.disabled = true;
-      } else if (!culprit[1].unsubData) {
+      } else if (!culprit[1].unsubData || (!culprit[1].unsubData.https && !culprit[1].unsubData.mailto)) {
         unsubBtn.disabled = true;
         unsubBtn.innerText = 'No Link';
+      } else if (!culprit[1].unsubData.https && culprit[1].unsubData.mailto) {
+        unsubBtn.innerText = 'Open Mail App';
+        unsubBtn.onclick = () => {
+          openManualUnsub(culprit[1].unsubData);
+        };
       } else {
         unsubBtn.innerText = 'Unsubscribe';
-        unsubBtn.addEventListener('click', async () => {
+        unsubBtn.onclick = async () => {
            const unsubData = culprit[1].unsubData;
            const requiresPost = culprit[1].requiresPost; 
            unsubBtn.innerText = "Attempting...";
            unsubBtn.disabled = true;
 
-           chrome.identity.getAuthToken({interactive: true}, async function(token) {
-             let success = false;
+           let success = false;
 
-             if (unsubData.https) {
-               try {
-                 let response = await fetch(unsubData.https, {
-                   method: requiresPost ? 'POST' : 'GET', 
-                   headers: requiresPost ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {},
-                   body: requiresPost ? 'List-Unsubscribe=One-Click' : null 
-                 });
+           if (unsubData.https) {
+             try {
+               let response = await fetch(unsubData.https, {
+                 method: requiresPost ? 'POST' : 'GET', 
+                 headers: requiresPost ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {},
+                 body: requiresPost ? 'List-Unsubscribe=One-Click' : null 
+               });
 
-                 if (!response.ok && requiresPost) {
-                   response = await fetch(unsubData.https, { method: 'GET' });
+               if (!response.ok && requiresPost) {
+                 response = await fetch(unsubData.https, { method: 'GET' });
+               }
+
+               if (response.ok) {
+                 const reply = await response.text(); 
+                 if (!reply.toLowerCase().includes('<!doctype html>') && !reply.toLowerCase().includes('<html')) {
+                    success = true;
                  }
+               }
+             } catch (err) { console.error(err); }
+           }
 
-                 if (response.ok) {
-                   const reply = await response.text(); 
-                   if (!reply.toLowerCase().includes('<!doctype html>') && !reply.toLowerCase().includes('<html')) {
-                      success = true;
-                   }
-                 }
-               } catch (err) { console.error(err); }
-             }
-
-             if (!success && unsubData.mailto) {
-               try {
-                 await sendSilentUnsubEmail(unsubData.mailto, token);
-                 success = true;
-               } catch (err) { console.error(err); }
-             }
-
-             if (success) {
-               culprit[1].hasUnsubscribed = true;
-               chrome.storage.local.set({ savedSenders: sendersList });
-               unsubBtn.innerText = "Unsubscribed!";
-               unsubBtn.style.backgroundColor = '#0f9d58'; 
-               unsubBtn.style.color = 'white';
-             } else {
-               unsubBtn.innerText = "Open Tab?";
-               unsubBtn.style.backgroundColor = '#d93025';
-               unsubBtn.style.color = 'white';
-               unsubBtn.disabled = false; 
-               const fallbackUrl = unsubData.https || unsubData.mailto;
-               unsubBtn.onclick = () => {
-                  if (fallbackUrl.startsWith('mailto:')) window.location.href = fallbackUrl;
-                  else window.open(fallbackUrl, '_blank');
-               };
-             }
-           });
-        });
+           if (success) {
+             culprit[1].hasUnsubscribed = true;
+             chrome.storage.local.set({ savedSenders: sendersList });
+             unsubBtn.innerText = "Unsubscribed!";
+             unsubBtn.style.backgroundColor = '#0f9d58'; 
+             unsubBtn.style.color = 'white';
+           } else {
+             unsubBtn.innerText = getManualUnsubLabel(unsubData);
+             unsubBtn.style.backgroundColor = '#d93025';
+             unsubBtn.style.color = 'white';
+             unsubBtn.disabled = false;
+              unsubBtn.onclick = () => {
+                openManualUnsub(unsubData);
+              };
+            }
+        };
       }
 
       btnGroup.appendChild(deleteBtn);
@@ -515,14 +494,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
           batchResults.forEach(res => {
             if (res && res.email) {
-              if (!senderCounts[res.email]) senderCounts[res.email] = { count: 0, exampleId: res.id, unsubData: res.unsub, requiresPost: res.post };
+              if (!senderCounts[res.email]) {
+                senderCounts[res.email] = { count: 0, exampleId: res.id, unsubData: res.unsub, requiresPost: res.post };
+              }
+
+              const existing = senderCounts[res.email];
+              if (getUnsubScore(res.unsub, res.post) > getUnsubScore(existing.unsubData, existing.requiresPost)) {
+                existing.unsubData = res.unsub;
+                existing.requiresPost = res.post;
+                existing.exampleId = res.id;
+              }
+
               senderCounts[res.email].count++;
             }
           });
           if (i < batches.length - 1) await sleep(300); 
         }
         
-        const sorted = Object.entries(senderCounts).sort((a, b) => b[1].count - a[1].count).filter(s => s[1].count >= 10);
+        const sorted = Object.entries(senderCounts).sort((a, b) => b[1].count - a[1].count).filter(s => s[1].count >= 4);
         chrome.storage.local.set({ savedSenders: sorted, totalFound: Object.keys(senderCounts).length });
         
         progressContainer.style.display = 'none';
