@@ -13,7 +13,7 @@
 <body>
 
     <h1>Privacy Policy for Spam Shredder</h1>
-    <p><strong>Effective Date:</strong> May 26, 2026</p>
+    <p><strong>Effective Date:</strong> June 1, 2026</p>
 
     <p>This Privacy Policy describes how Spam Shredder ("we", "our", or "the extension") accesses, uses, and protects your information. Spam Shredder is a Google Chrome extension designed to help users identify, bulk-delete, and unsubscribe from promotional spam emails directly within their Gmail inbox.</p>
     <p>By installing and using Spam Shredder, you agree to the practices outlined in this policy.</p>
@@ -21,7 +21,7 @@
     <h2>1. Information We Access</h2>
     <p>To function correctly, Spam Shredder requires authorization to access your Gmail account. We request the following permissions:</p>
     <ul>
-        <li><strong>Gmail Access (<code>https://mail.google.com/</code>):</strong> This restricted scope allows the extension to read your email metadata (specifically sender addresses and unsubscribe headers) and move specific emails to your Trash folder.</li>
+        <li><strong>Gmail Access (<code>https://www.googleapis.com/auth/gmail.modify</code>):</strong> This restricted scope allows the extension to read your email metadata (specifically sender addresses and unsubscribe headers) and apply the <code>TRASH</code> label to specific emails.</li>
         <li><strong>Identity & User Profile:</strong> We access your basic profile information (your email address) solely to display your current sign-in status within the extension's user interface.</li>
     </ul>
 
@@ -34,14 +34,17 @@
     </ul>
     <p><strong>All data processing happens locally on your device.</strong> We do not read the personal body content of your private emails, only the sender metadata and unsubscription headers.</p>
 
-    <h2>3. Data Storage</h2>
+    <h2>3. Data Protection Mechanisms</h2>
+    <p>Spam Shredder employs strict data protection mechanisms to secure your sensitive information. Because the application operates entirely locally within your browser environment, your Google user data, email content, and OAuth tokens are never transmitted over the internet to any external servers, third-party APIs, or databases. All data processing occurs locally on your device. The application relies on Google's secure OAuth 2.0 protocol for authentication, and any temporary application state is secured locally within Chrome's isolated and sandboxed storage environment.</p>
+
+    <h2>4. Data Storage</h2>
     <p>Spam Shredder does not use any external servers or third-party databases to store your information.</p>
     <ul>
         <li>Any data saved by the extension (such as the list of identified spam senders, their email counts, and your quota history) is stored locally on your device using Chrome's local storage (<code>chrome.storage.local</code>).</li>
         <li>Clearing your extension data or uninstalling the extension will permanently remove this local data.</li>
     </ul>
 
-    <h2>4. Google API Services User Data Policy (Limited Use)</h2>
+    <h2>5. Google API Services User Data Policy (Limited Use)</h2>
     <p>Spam Shredder's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
     <p>Specifically:</p>
     <ul>
@@ -50,13 +53,13 @@
         <li>We <strong>do not</strong> use your data for training generalized AI or machine learning models.</li>
     </ul>
 
-    <h2>5. Third-Party Links</h2>
+    <h2>6. Third-Party Links</h2>
     <p>When manually unsubscribing from a mailing list, the extension may open a new tab navigating to a sender's specific unsubscribe webpage. We are not responsible for the privacy practices or the content of these external websites.</p>
 
-    <h2>6. Changes to This Privacy Policy</h2>
+    <h2>7. Changes to This Privacy Policy</h2>
     <p>We may update this Privacy Policy from time to time to reflect changes in our practices or for other operational, legal, or regulatory reasons. The "Effective Date" at the top of this policy will reflect the most recent update.</p>
 
-    <h2>7. Contact Us</h2>
+    <h2>8. Contact Us</h2>
     <p>If you have any questions, concerns, or requests regarding this Privacy Policy or how your data is handled, please contact:<br>
     <strong>Email:</strong> dilazzaroryo@gmail.com</p>
 
